@@ -53,7 +53,7 @@ One FastAPI process serves both the API (`/api/*`) and the static frontend (`/`,
 ### Backend module layout (`backend/app/`)
 
 - `main.py` — FastAPI app, lifespan (`init_db()` on startup), auth routes (`/api/login`, `/api/logout`, `/api/session`), `/api/ai/ping` (connectivity smoke test), the gated test-reset route, and mounts the `board` and `chat` routers plus the static files.
-- `auth.py` — hardcoded single-user credentials (`user`/`password`, hashed with PBKDF2-HMAC-SHA256 before storage/comparison via `hmac.compare_digest`), `itsdangerous`-signed session cookie (no server-side session store — the signed token *is* the session, verified stateless on each request), `COOKIE_SECURE` env var to toggle the `secure` cookie flag for HTTPS deployments.
+- `auth.py` — hardcoded single-user credentials (`user`/`password`, hashed with PBKDF2-HMAC-SHA256 before storage/comparison via `hmac.compare_digest`), `itsdangerous`-signed session cookie (no server-side session store — the signed token _is_ the session, verified stateless on each request), `COOKIE_SECURE` env var to toggle the `secure` cookie flag for HTTPS deployments.
 - `db.py` — raw `sqlite3` (no ORM), schema creation and seeding, `reset_db()` for tests. Every connection runs `PRAGMA journal_mode = WAL` and `busy_timeout = 5000` since each request opens its own short-lived connection.
 - `board.py` — Pydantic models (`Card`, `Column`, `BoardData`) and the `*_in_db` functions that do the actual SQL, wrapped by thin `@router` route handlers. **This module owns the ID-prefixing scheme** (see below) and the position-shifting logic for drag/reorder persistence.
 - `chat.py` — the AI chat endpoint. Builds a system prompt containing the full board JSON, calls OpenRouter with a strict JSON-schema `response_format`, and applies the model's returned `actions` list through the same `*_in_db` functions `board.py`'s REST routes use (not a separate code path).
@@ -69,7 +69,7 @@ Columns and cards are separate SQLite auto-increment sequences, so a card and a 
 
 ### AI chat action model
 
-The AI does not return a full replacement board. It returns `{ reply: string, actions: [...] }` where each action is one of `rename_column` / `create_card` / `update_card` / `move_card` / `delete_card`, referencing existing `col-*`/`card-*` IDs from the board JSON it was given. Each action is applied through the *same* `*_in_db` functions the REST API uses — there is no parallel "AI mutation" code path. Actions referencing unknown IDs are skipped individually (not a whole-request failure); if any are skipped, the reply gets an appended note so the user knows. If OpenRouter itself fails (network/rate-limit) or returns unparseable JSON, the chat endpoint degrades to a friendly reply with the board unchanged rather than a 500.
+The AI does not return a full replacement board. It returns `{ reply: string, actions: [...] }` where each action is one of `rename_column` / `create_card` / `update_card` / `move_card` / `delete_card`, referencing existing `col-*`/`card-*` IDs from the board JSON it was given. Each action is applied through the _same_ `*_in_db` functions the REST API uses — there is no parallel "AI mutation" code path. Actions referencing unknown IDs are skipped individually (not a whole-request failure); if any are skipped, the reply gets an appended note so the user knows. If OpenRouter itself fails (network/rate-limit) or returns unparseable JSON, the chat endpoint degrades to a friendly reply with the board unchanged rather than a 500.
 
 ### Frontend structure (`frontend/src/`)
 
@@ -86,3 +86,7 @@ The AI does not return a full replacement board. It returns `{ reply: string, ac
 - Frontend unit: Vitest + Testing Library, colocated `Foo.test.tsx` next to `Foo.tsx`, mocks `lib/api.ts` functions directly rather than mocking `fetch`.
 - E2E: Playwright, in `frontend/tests/`. `tests/auth.ts`'s `login()` helper calls a test-only `POST /api/test/reset` endpoint before each test to guarantee a clean board — this route only exists when the backend is started with `ENABLE_TEST_RESET=1` (never set this in the real `docker-compose.yml` service; it's an unauthenticated board-wipe). When asserting persistence across a `page.reload()`, wait for the actual mutating network request to resolve first (`page.waitForResponse`) — waiting only for the optimistic local UI update to settle before reloading is a race that produces flaky "persistence" failures.
 - Live-model tests (both pytest and the e2e chat spec) can genuinely fail non-deterministically because the underlying LLM doesn't always follow the system prompt — a failure there should be reproduced by rerunning before assuming it's a real regression.
+
+## DETAILED PLAN
+
+@docs/PLAN.md

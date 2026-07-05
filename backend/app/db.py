@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from app.auth import HARDCODED_PASSWORD, HARDCODED_USERNAME
+from app.auth import HARDCODED_PASSWORD_HASH, HARDCODED_USERNAME
 
 DB_PATH = Path(__file__).parent.parent / "data" / "app.db"
 
@@ -37,14 +37,20 @@ DEFAULT_COLUMNS = ["Backlog", "Discovery", "In Progress", "Review", "Done"]
 
 
 def get_connection() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL allows readers and a writer to proceed concurrently instead of
+    # blocking, and the busy timeout makes a writer wait (rather than
+    # immediately raising "database is locked") if two requests briefly
+    # collide — relevant since every request opens its own connection.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
 def init_db() -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = get_connection()
     try:
         conn.executescript(SCHEMA)
@@ -73,7 +79,7 @@ def _seed_user_and_board(conn: sqlite3.Connection) -> None:
     if user is None:
         cursor = conn.execute(
             "INSERT INTO users (username, password) VALUES (?, ?)",
-            (HARDCODED_USERNAME, HARDCODED_PASSWORD),
+            (HARDCODED_USERNAME, HARDCODED_PASSWORD_HASH),
         )
         user_id = cursor.lastrowid
     else:

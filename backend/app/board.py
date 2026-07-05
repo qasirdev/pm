@@ -72,13 +72,25 @@ class UpdateCardRequest(BaseModel):
     position: int | None = None
 
 
+class UserNotFoundError(Exception):
+    pass
+
+
+class BoardNotFoundError(Exception):
+    pass
+
+
 def get_board_id_for_user(conn: sqlite3.Connection, username: str) -> int:
     user = conn.execute(
         "SELECT id FROM users WHERE username = ?", (username,)
     ).fetchone()
+    if user is None:
+        raise UserNotFoundError(username)
     board = conn.execute(
         "SELECT id FROM boards WHERE user_id = ?", (user["id"],)
     ).fetchone()
+    if board is None:
+        raise BoardNotFoundError(user["id"])
     return board["id"]
 
 
@@ -152,6 +164,21 @@ def create_card_in_db(
     return cursor.lastrowid
 
 
+def _compact_column_positions(
+    conn: sqlite3.Connection, column_id: int, exclude_card_id: int | None = None
+) -> None:
+    """Renumber a column's cards to consecutive 0..n-1 positions, preserving
+    order, optionally excluding one card (used while that card is mid-move)."""
+    rows = conn.execute(
+        "SELECT id FROM cards WHERE column_id = ? AND id != ? ORDER BY position, id",
+        (column_id, exclude_card_id if exclude_card_id is not None else -1),
+    ).fetchall()
+    for index, row in enumerate(rows):
+        conn.execute(
+            "UPDATE cards SET position = ? WHERE id = ?", (index, row["id"])
+        )
+
+
 def update_card_in_db(
     conn: sqlite3.Connection,
     card_id: int,
@@ -173,22 +200,51 @@ def update_card_in_db(
 
     resolved_title = title if title is not None else card["title"]
     resolved_details = details if details is not None else card["details"]
-    resolved_column_id = column_id if column_id is not None else card["column_id"]
+    source_column_id = card["column_id"]
+    resolved_column_id = column_id if column_id is not None else source_column_id
 
-    if position is not None:
-        resolved_position = position
-    elif column_id is not None:
-        max_position = conn.execute(
-            "SELECT COALESCE(MAX(position), -1) AS max_position FROM cards WHERE column_id = ?",
-            (resolved_column_id,),
-        ).fetchone()["max_position"]
-        resolved_position = max_position + 1
-    else:
-        resolved_position = card["position"]
+    if column_id is None and position is None:
+        # No move/reorder requested; just update title/details in place.
+        conn.execute(
+            "UPDATE cards SET title = ?, details = ? WHERE id = ?",
+            (resolved_title, resolved_details, card_id),
+        )
+        return
+
+    # Moving and/or reordering: compact the source column's positions with
+    # this card excluded (closing the gap it leaves behind), then insert it
+    # at the requested position (or the end) in the destination column,
+    # shifting any siblings at/after that position out of the way. This
+    # keeps `position` a dense 0..n-1 sequence per column, so cross-column
+    # moves and in-column reorders both persist correctly. The card's own
+    # row is never given an invalid column_id, so the foreign key stays
+    # satisfied throughout.
+    _compact_column_positions(conn, source_column_id, exclude_card_id=card_id)
+    if resolved_column_id != source_column_id:
+        _compact_column_positions(conn, resolved_column_id)
+
+    sibling_count = conn.execute(
+        "SELECT COUNT(*) AS count FROM cards WHERE column_id = ? AND id != ?",
+        (resolved_column_id, card_id),
+    ).fetchone()["count"]
+    insert_position = (
+        sibling_count if position is None else max(0, min(position, sibling_count))
+    )
 
     conn.execute(
+        "UPDATE cards SET position = position + 1 "
+        "WHERE column_id = ? AND position >= ? AND id != ?",
+        (resolved_column_id, insert_position, card_id),
+    )
+    conn.execute(
         "UPDATE cards SET title = ?, details = ?, column_id = ?, position = ? WHERE id = ?",
-        (resolved_title, resolved_details, resolved_column_id, resolved_position, card_id),
+        (
+            resolved_title,
+            resolved_details,
+            resolved_column_id,
+            insert_position,
+            card_id,
+        ),
     )
 
 
@@ -202,7 +258,13 @@ def delete_card_in_db(conn: sqlite3.Connection, card_id: int) -> None:
 def get_board() -> BoardData:
     conn = get_connection()
     try:
-        board_id = get_board_id_for_user(conn, HARDCODED_USERNAME)
+        try:
+            board_id = get_board_id_for_user(conn, HARDCODED_USERNAME)
+        except (UserNotFoundError, BoardNotFoundError) as error:
+            raise HTTPException(
+                status_code=500,
+                detail="Seeded user/board is missing; the database may be corrupt.",
+            ) from error
         return load_board(conn, board_id)
     finally:
         conn.close()
@@ -215,8 +277,8 @@ def rename_column(column_id: str, body: RenameColumnRequest) -> Column:
         try:
             raw_column_id = parse_column_id(column_id)
             rename_column_in_db(conn, raw_column_id, body.title)
-        except ColumnNotFoundError:
-            raise HTTPException(status_code=404, detail="Column not found")
+        except ColumnNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Column not found") from error
         conn.commit()
 
         card_rows = conn.execute(
@@ -241,8 +303,8 @@ def create_card(body: CreateCardRequest) -> Card:
             raw_card_id = create_card_in_db(
                 conn, raw_column_id, body.title, body.details
             )
-        except ColumnNotFoundError:
-            raise HTTPException(status_code=404, detail="Column not found")
+        except ColumnNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Column not found") from error
         conn.commit()
         return Card(
             id=card_id_to_str(raw_card_id), title=body.title, details=body.details
@@ -268,10 +330,10 @@ def update_card(card_id: str, body: UpdateCardRequest) -> Card:
                 column_id=raw_column_id,
                 position=body.position,
             )
-        except CardNotFoundError:
-            raise HTTPException(status_code=404, detail="Card not found")
-        except ColumnNotFoundError:
-            raise HTTPException(status_code=404, detail="Column not found")
+        except CardNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Card not found") from error
+        except ColumnNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Column not found") from error
         conn.commit()
 
         card = conn.execute(
@@ -289,8 +351,8 @@ def delete_card(card_id: str) -> None:
         try:
             raw_card_id = parse_card_id(card_id)
             delete_card_in_db(conn, raw_card_id)
-        except CardNotFoundError:
-            raise HTTPException(status_code=404, detail="Card not found")
+        except CardNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Card not found") from error
         conn.commit()
     finally:
         conn.close()

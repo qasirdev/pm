@@ -1,14 +1,17 @@
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from openai import OpenAIError
 from pydantic import BaseModel
 
 from app.ai import get_client, get_model
 from app.auth import HARDCODED_USERNAME, require_session
 from app.board import (
     BoardData,
+    BoardNotFoundError,
     CardNotFoundError,
     ColumnNotFoundError,
+    UserNotFoundError,
     create_card_in_db,
     delete_card_in_db,
     get_board_id_for_user,
@@ -101,7 +104,7 @@ class ChatResponse(BaseModel):
     board: BoardData
 
 
-def _apply_action(conn, board_id: int, action: dict) -> None:
+def _apply_action(conn, action: dict) -> None:
     action_type = action.get("type")
     column_id = action.get("column_id")
     card_id = action.get("card_id")
@@ -120,13 +123,21 @@ def _apply_action(conn, board_id: int, action: dict) -> None:
         )
     elif action_type == "delete_card" and card_id:
         delete_card_in_db(conn, parse_card_id(card_id))
+    else:
+        raise ValueError(f"Unrecognized or incomplete action: {action}")
 
 
 @router.post("/chat")
 def chat(body: ChatRequest) -> ChatResponse:
     conn = get_connection()
     try:
-        board_id = get_board_id_for_user(conn, HARDCODED_USERNAME)
+        try:
+            board_id = get_board_id_for_user(conn, HARDCODED_USERNAME)
+        except (UserNotFoundError, BoardNotFoundError) as error:
+            raise HTTPException(
+                status_code=500,
+                detail="Seeded user/board is missing; the database may be corrupt.",
+            ) from error
         board = load_board(conn, board_id)
 
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -141,11 +152,18 @@ def chat(body: ChatRequest) -> ChatResponse:
         messages.append({"role": "user", "content": body.message})
 
         client = get_client()
-        completion = client.chat.completions.create(
-            model=get_model(),
-            messages=messages,
-            response_format=RESPONSE_SCHEMA,
-        )
+        try:
+            completion = client.chat.completions.create(
+                model=get_model(),
+                messages=messages,
+                response_format=RESPONSE_SCHEMA,
+            )
+        except OpenAIError:
+            return ChatResponse(
+                reply="Sorry, the AI assistant is temporarily unavailable. Please try again shortly.",
+                board=board,
+            )
+
         raw_content = completion.choices[0].message.content
         try:
             parsed = json.loads(raw_content) if raw_content else None
@@ -158,14 +176,24 @@ def chat(body: ChatRequest) -> ChatResponse:
                 board=board,
             )
 
+        skipped_count = 0
         for action in parsed.get("actions", []):
             try:
-                _apply_action(conn, board_id, action)
+                _apply_action(conn, action)
             except (ColumnNotFoundError, CardNotFoundError, ValueError, TypeError):
+                skipped_count += 1
                 continue
         conn.commit()
 
+        reply = parsed.get("reply", "")
+        if skipped_count:
+            noun = "action" if skipped_count == 1 else "actions"
+            reply = (
+                f"{reply} (Note: {skipped_count} requested {noun} could not be "
+                "applied and were skipped.)"
+            ).strip()
+
         updated_board = load_board(conn, board_id)
-        return ChatResponse(reply=parsed.get("reply", ""), board=updated_board)
+        return ChatResponse(reply=reply, board=updated_board)
     finally:
         conn.close()

@@ -5,10 +5,15 @@
 SQLite, via Python's standard library (or a thin wrapper such as `sqlite3`
 directly — no ORM is needed for a schema this small). The database file lives
 at `backend/data/app.db` (created on first run if missing; the `data/`
-directory is gitignored). Inside the Docker container this path is not
-volume-mounted for the MVP, so the database resets on container rebuild —
-acceptable for local development where the app is meant to be started/stopped
-via `scripts/`.
+directory is gitignored). `backend/data/` is a named Docker volume, so the
+database persists across `docker compose up --build` rebuilds; use
+`docker compose down -v` to explicitly wipe it.
+
+Every connection runs in WAL (`journal_mode = WAL`) with a 5-second
+`busy_timeout`, since each request opens its own short-lived connection —
+WAL lets readers and a writer proceed concurrently instead of blocking, and
+the busy timeout absorbs brief lock contention instead of immediately
+raising `database is locked`.
 
 ## Schema
 
@@ -24,12 +29,16 @@ See `docs/schema.json` for the full column-level definition. Four tables:
 
 ## Password storage
 
-Storing the password as a plain-text column is a deliberate simplification,
-not an oversight: this is a local-only MVP with a single hardcoded
-credential pair that's already public in `AGENTS.md`, so hashing buys no
-real security here. Do not carry this forward if the app ever handles real
-user-chosen passwords — bcrypt/argon2 hashing would be required at that
-point.
+The `users.password` column stores a PBKDF2-HMAC-SHA256 hash (see
+`app/auth.py::hash_password`), not the plain-text password, and credential
+comparisons use `hmac.compare_digest` to avoid timing side-channels. The
+salt is a fixed constant rather than per-user, which is a deliberate
+simplification: with exactly one hardcoded credential pair (already public
+in `AGENTS.md`), a fixed salt does not weaken anything a real per-user salt
+would protect against (there is no second user's hash to correlate against).
+Do not carry the fixed-salt approach forward if the app ever handles real
+user-chosen passwords — use a proper per-user salt (which `pbkdf2_hmac`
+supports) or switch to bcrypt/argon2 at that point.
 
 ## Mapping to the frontend `BoardData` shape
 

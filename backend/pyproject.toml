@@ -17,3 +17,10 @@ dev = [
     "pytest>=8.4.0",
     "httpx>=0.28.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: makes a real OpenRouter API call; non-deterministic, excluded by default (run with -m live to include).",
+]
+addopts = "-m 'not live'"

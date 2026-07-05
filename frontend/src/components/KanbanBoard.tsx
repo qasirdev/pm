@@ -65,24 +65,47 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
     const { active, over } = event;
     setActiveCardId(null);
 
-    if (!over || active.id === over.id || !board) {
+    if (!over || active.id === over.id) {
       return;
     }
 
     const cardId = active.id as string;
-    const previousColumns = board.columns;
-    const nextColumns = moveCard(board.columns, cardId, over.id as string);
-    setBoard({ ...board, columns: nextColumns });
+    const overId = over.id as string;
 
-    const targetColumn = nextColumns.find((column) =>
-      column.cardIds.includes(cardId)
-    );
-    if (!targetColumn) {
-      return;
-    }
-    moveCardApi(cardId, targetColumn.id).catch((error) => {
-      setBoard((prev) => (prev ? { ...prev, columns: previousColumns } : prev));
-      handleApiError(error);
+    setBoard((prev) => {
+      if (!prev) return prev;
+
+      const previousColumns = prev.columns;
+      const nextColumns = moveCard(prev.columns, cardId, overId);
+      if (nextColumns === previousColumns) {
+        return prev;
+      }
+
+      const targetColumn = nextColumns.find((column) =>
+        column.cardIds.includes(cardId)
+      );
+      if (!targetColumn) {
+        return prev;
+      }
+      const targetPosition = targetColumn.cardIds.indexOf(cardId);
+      const sourceColumn = previousColumns.find((column) =>
+        column.cardIds.includes(cardId)
+      );
+      const isUnchanged =
+        sourceColumn?.id === targetColumn.id &&
+        sourceColumn.cardIds.indexOf(cardId) === targetPosition;
+      if (isUnchanged) {
+        return prev;
+      }
+
+      moveCardApi(cardId, targetColumn.id, targetPosition).catch((error) => {
+        setBoard((current) =>
+          current ? { ...current, columns: previousColumns } : current
+        );
+        handleApiError(error);
+      });
+
+      return { ...prev, columns: nextColumns };
     });
   };
 

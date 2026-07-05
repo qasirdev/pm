@@ -45,10 +45,14 @@ export function createCard(
   });
 }
 
-export function moveCardApi(cardId: string, columnId: string): Promise<Card> {
+export function moveCardApi(
+  cardId: string,
+  columnId: string,
+  position: number
+): Promise<Card> {
   return request(`/api/cards/${cardId}`, {
     method: "PATCH",
-    body: JSON.stringify({ column_id: columnId }),
+    body: JSON.stringify({ column_id: columnId, position }),
   });
 }
 

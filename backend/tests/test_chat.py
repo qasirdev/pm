@@ -29,6 +29,7 @@ def test_chat_requires_auth():
     assert response.status_code == 401
 
 
+@pytest.mark.live
 @requires_openrouter_key
 def test_chat_without_board_intent_leaves_board_unchanged(client):
     board_before = client.get("/api/board").json()
@@ -43,6 +44,7 @@ def test_chat_without_board_intent_leaves_board_unchanged(client):
     assert body["board"] == board_before
 
 
+@pytest.mark.live
 @requires_openrouter_key
 def test_chat_creates_and_moves_a_card(client):
     board = client.get("/api/board").json()
@@ -81,16 +83,15 @@ def test_apply_action_raises_for_unknown_card_id(tmp_path, monkeypatch):
 
     conn = get_connection()
     try:
-        board_id = get_board_id_for_user(conn, "user")
+        get_board_id_for_user(conn, "user")
 
         with pytest.raises(CardNotFoundError):
             _apply_action(
                 conn,
-                board_id,
                 {
                     "type": "move_card",
-                    "card_id": "9999",
-                    "column_id": "1",
+                    "card_id": "card-9999",
+                    "column_id": "col-1",
                     "title": None,
                     "details": None,
                 },
@@ -132,8 +133,8 @@ def test_chat_route_ignores_action_with_unknown_card_id(client, monkeypatch):
 
     fake_client = make_fake_client(
         '{"reply": "done", "actions": '
-        '[{"type": "move_card", "card_id": "9999", '
-        '"column_id": "1", "title": null, "details": null}]}'
+        '[{"type": "move_card", "card_id": "card-9999", '
+        '"column_id": "col-1", "title": null, "details": null}]}'
     )
     monkeypatch.setattr(chat_module, "get_client", lambda: fake_client)
 
@@ -141,7 +142,8 @@ def test_chat_route_ignores_action_with_unknown_card_id(client, monkeypatch):
     response = client.post("/api/chat", json={"message": "move it", "history": []})
 
     assert response.status_code == 200
-    assert response.json()["reply"] == "done"
+    assert "done" in response.json()["reply"]
+    assert "1 requested action could not be applied" in response.json()["reply"]
     assert response.json()["board"] == board_before
 
 
@@ -165,6 +167,31 @@ def test_chat_handles_malformed_json_response_gracefully(client, monkeypatch):
 
     fake_client = make_fake_client("not valid json {{{")
     monkeypatch.setattr(chat_module, "get_client", lambda: fake_client)
+
+    board_before = client.get("/api/board").json()
+    response = client.post("/api/chat", json={"message": "hello", "history": []})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"]
+    assert body["board"] == board_before
+
+
+def test_chat_handles_openrouter_error_gracefully(client, monkeypatch):
+    from app import chat as chat_module
+    from openai import APIConnectionError
+
+    class FailingCompletions:
+        def create(self, **kwargs):
+            raise APIConnectionError(request=None)
+
+    class FailingChat:
+        completions = FailingCompletions()
+
+    class FailingClient:
+        chat = FailingChat()
+
+    monkeypatch.setattr(chat_module, "get_client", lambda: FailingClient())
 
     board_before = client.get("/api/board").json()
     response = client.post("/api/chat", json={"message": "hello", "history": []})

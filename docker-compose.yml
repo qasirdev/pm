@@ -7,3 +7,11 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - db-data:/app/data
+    # Do not set ENABLE_TEST_RESET here: it exposes an unauthenticated
+    # POST /api/test/reset endpoint that wipes the board. It's only meant
+    # for local Playwright test runs against a separate container/env var.
+
+volumes:
+  db-data:

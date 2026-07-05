@@ -4,10 +4,12 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
+from openai import OpenAIError
 from pydantic import BaseModel
 
 from app.ai import get_client, get_model
 from app.auth import (
+    COOKIE_SECURE,
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
     create_session_token,
@@ -25,6 +27,11 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# No CORS middleware is configured, and none should be added: the frontend is
+# served as static files from this same FastAPI app, so every /api/* call is
+# same-origin. Adding permissive CORS here would let other origins ride the
+# session cookie's credentials, which is a CSRF risk this design avoids by
+# construction.
 app = FastAPI(title="Project Management MVP", lifespan=lifespan)
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -52,6 +59,7 @@ def login(credentials: LoginRequest, response: Response) -> dict[str, str]:
         max_age=SESSION_MAX_AGE_SECONDS,
         httponly=True,
         samesite="lax",
+        secure=COOKIE_SECURE,
     )
     return {"username": credentials.username}
 
@@ -70,12 +78,17 @@ def session_status(username: str = Depends(require_session)) -> dict[str, str]:
 @app.get("/api/ai/ping", dependencies=[Depends(require_session)])
 def ai_ping() -> dict[str, str]:
     client = get_client()
-    response = client.chat.completions.create(
-        model=get_model(),
-        messages=[
-            {"role": "user", "content": "What is 2+2? Reply with just the number."}
-        ],
-    )
+    try:
+        response = client.chat.completions.create(
+            model=get_model(),
+            messages=[
+                {"role": "user", "content": "What is 2+2? Reply with just the number."}
+            ],
+        )
+    except OpenAIError as error:
+        raise HTTPException(
+            status_code=502, detail=f"OpenRouter request failed: {error}"
+        ) from error
     return {"response": response.choices[0].message.content or ""}
 
 

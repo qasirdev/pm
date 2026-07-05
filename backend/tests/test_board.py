@@ -96,6 +96,65 @@ def test_update_missing_card_404(client):
     assert response.status_code == 404
 
 
+def test_reorder_cards_within_a_column(client):
+    board = client.get("/api/board").json()
+    column_id = board["columns"][0]["id"]
+
+    card_a = client.post(
+        "/api/cards", json={"column_id": column_id, "title": "A", "details": ""}
+    ).json()
+    card_b = client.post(
+        "/api/cards", json={"column_id": column_id, "title": "B", "details": ""}
+    ).json()
+    card_c = client.post(
+        "/api/cards", json={"column_id": column_id, "title": "C", "details": ""}
+    ).json()
+
+    board_after_create = client.get("/api/board").json()
+    assert board_after_create["columns"][0]["cardIds"] == [
+        card_a["id"],
+        card_b["id"],
+        card_c["id"],
+    ]
+
+    # Move C to the front of the column.
+    response = client.patch(f"/api/cards/{card_c['id']}", json={"position": 0})
+    assert response.status_code == 200
+
+    board_after_reorder = client.get("/api/board").json()
+    assert board_after_reorder["columns"][0]["cardIds"] == [
+        card_c["id"],
+        card_a["id"],
+        card_b["id"],
+    ]
+
+
+def test_move_card_to_specific_position_in_another_column(client):
+    board = client.get("/api/board").json()
+    source_id = board["columns"][0]["id"]
+    target_id = board["columns"][1]["id"]
+
+    moving_card = client.post(
+        "/api/cards", json={"column_id": source_id, "title": "Moving", "details": ""}
+    ).json()
+    existing_card = client.post(
+        "/api/cards", json={"column_id": target_id, "title": "Existing", "details": ""}
+    ).json()
+
+    response = client.patch(
+        f"/api/cards/{moving_card['id']}",
+        json={"column_id": target_id, "position": 0},
+    )
+    assert response.status_code == 200
+
+    board_after = client.get("/api/board").json()
+    assert board_after["columns"][0]["cardIds"] == []
+    assert board_after["columns"][1]["cardIds"] == [
+        moving_card["id"],
+        existing_card["id"],
+    ]
+
+
 def test_delete_card(client):
     board = client.get("/api/board").json()
     column_id = board["columns"][0]["id"]

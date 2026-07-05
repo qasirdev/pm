@@ -18,6 +18,7 @@ def client():
         yield c
 
 
+@pytest.mark.live
 @requires_openrouter_key
 def test_ai_ping_answers_2_plus_2(client):
     response = client.get("/api/ai/ping")

@@ -61,6 +61,74 @@ test("moves a card between columns", async ({ page }) => {
   await expect(targetColumn.getByText("Draggable card")).toBeVisible();
 });
 
+test("reordering cards within a column persists across reload", async ({
+  page,
+}) => {
+  const firstColumn = page.locator('[data-testid^="column-"]').first();
+
+  for (const title of ["Card A", "Card B", "Card C"]) {
+    await firstColumn.getByRole("button", { name: /add a card/i }).click();
+    await firstColumn.getByPlaceholder("Card title").fill(title);
+    await firstColumn.getByRole("button", { name: /add card/i }).click();
+  }
+  await expect(firstColumn.getByText("Card C")).toBeVisible();
+
+  const cardC = firstColumn.locator('[data-testid^="card-"]', {
+    hasText: "Card C",
+  });
+  const cardA = firstColumn.locator('[data-testid^="card-"]', {
+    hasText: "Card A",
+  });
+
+  const cardCBox = await cardC.boundingBox();
+  const cardABox = await cardA.boundingBox();
+  if (!cardCBox || !cardABox) {
+    throw new Error("Unable to resolve drag coordinates.");
+  }
+
+  const [patchResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        /\/api\/cards\/.+/.test(response.url()) &&
+        response.request().method() === "PATCH"
+    ),
+    (async () => {
+      await page.mouse.move(
+        cardCBox.x + cardCBox.width / 2,
+        cardCBox.y + cardCBox.height / 2
+      );
+      await page.mouse.down();
+      const steps = 20;
+      const startX = cardCBox.x + cardCBox.width / 2;
+      const startY = cardCBox.y + cardCBox.height / 2;
+      const endX = cardABox.x + cardABox.width / 2;
+      const endY = cardABox.y + 5;
+      for (let i = 1; i <= steps; i++) {
+        await page.mouse.move(
+          startX + (endX - startX) * (i / steps),
+          startY + (endY - startY) * (i / steps)
+        );
+      }
+      await page.mouse.up();
+    })(),
+  ]);
+  expect(patchResponse.ok()).toBe(true);
+
+  await expect(async () => {
+    const titles = await firstColumn.locator("h4").allTextContents();
+    expect(titles).toEqual(["Card C", "Card A", "Card B"]);
+  }).toPass();
+
+  await page.reload();
+
+  const reloadedFirstColumn = page.locator('[data-testid^="column-"]').first();
+  await expect(reloadedFirstColumn.getByText("Card C")).toBeVisible();
+  const titlesAfterReload = await reloadedFirstColumn
+    .locator("h4")
+    .allTextContents();
+  expect(titlesAfterReload).toEqual(["Card C", "Card A", "Card B"]);
+});
+
 test("persists changes across a page reload", async ({ page }) => {
   const firstColumn = page.locator('[data-testid^="column-"]').first();
   await firstColumn.getByRole("button", { name: /add a card/i }).click();

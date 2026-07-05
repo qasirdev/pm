@@ -1,0 +1,57 @@
+{
+  "database": "SQLite",
+  "tables": {
+    "users": {
+      "columns": {
+        "id": { "type": "INTEGER", "primaryKey": true, "autoIncrement": true },
+        "username": { "type": "TEXT", "unique": true, "notNull": true },
+        "password": { "type": "TEXT", "notNull": true }
+      },
+      "notes": "MVP seeds exactly one row ('user' / 'password', hardcoded). Password is stored as plain text for this local-only MVP; a real deployment would hash it."
+    },
+    "boards": {
+      "columns": {
+        "id": { "type": "INTEGER", "primaryKey": true, "autoIncrement": true },
+        "user_id": {
+          "type": "INTEGER",
+          "notNull": true,
+          "unique": true,
+          "foreignKey": { "table": "users", "column": "id" }
+        }
+      },
+      "notes": "One board per user for the MVP (user_id is unique), but the table exists separately from users so multiple boards per user is a future schema-compatible extension."
+    },
+    "columns": {
+      "columns": {
+        "id": { "type": "INTEGER", "primaryKey": true, "autoIncrement": true },
+        "board_id": {
+          "type": "INTEGER",
+          "notNull": true,
+          "foreignKey": { "table": "boards", "column": "id" }
+        },
+        "title": { "type": "TEXT", "notNull": true },
+        "position": { "type": "INTEGER", "notNull": true }
+      },
+      "notes": "position is a 0-based integer determining left-to-right column order within a board. Fixed set of 5 columns per board for the MVP, but rows are ordinary DB rows (renaming is just an UPDATE)."
+    },
+    "cards": {
+      "columns": {
+        "id": { "type": "INTEGER", "primaryKey": true, "autoIncrement": true },
+        "column_id": {
+          "type": "INTEGER",
+          "notNull": true,
+          "foreignKey": { "table": "columns", "column": "id" }
+        },
+        "title": { "type": "TEXT", "notNull": true },
+        "details": { "type": "TEXT", "notNull": false },
+        "position": { "type": "INTEGER", "notNull": true }
+      },
+      "notes": "position is a 0-based integer determining top-to-bottom card order within a column. Moving a card between columns updates column_id and position together."
+    }
+  },
+  "relationships": [
+    "users.id -> boards.user_id (one-to-one for MVP)",
+    "boards.id -> columns.board_id (one-to-many)",
+    "columns.id -> cards.column_id (one-to-many)"
+  ]
+}

@@ -1,13 +1,16 @@
 import { expect, test } from "@playwright/test";
+import { login } from "./auth";
+
+test.beforeEach(async ({ page }) => {
+  await login(page);
+});
 
 test("loads the kanban board", async ({ page }) => {
-  await page.goto("/");
   await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
   await expect(page.locator('[data-testid^="column-"]')).toHaveCount(5);
 });
 
 test("adds a card to a column", async ({ page }) => {
-  await page.goto("/");
   const firstColumn = page.locator('[data-testid^="column-"]').first();
   await firstColumn.getByRole("button", { name: /add a card/i }).click();
   await firstColumn.getByPlaceholder("Card title").fill("Playwright card");
@@ -17,9 +20,22 @@ test("adds a card to a column", async ({ page }) => {
 });
 
 test("moves a card between columns", async ({ page }) => {
-  await page.goto("/");
-  const card = page.getByTestId("card-card-1");
-  const targetColumn = page.getByTestId("column-col-review");
+  const columns = page.locator('[data-testid^="column-"]');
+  const firstColumn = columns.first();
+  const targetColumn = columns.nth(3);
+
+  await firstColumn.getByRole("button", { name: /add a card/i }).click();
+  await firstColumn.getByPlaceholder("Card title").fill("Draggable card");
+  await firstColumn.getByPlaceholder("Details").fill("Move me.");
+  await firstColumn.getByRole("button", { name: /add card/i }).click();
+
+  const card = firstColumn.locator('[data-testid^="card-"]', {
+    hasText: "Draggable card",
+  });
+  await expect(card).toBeVisible();
+  await card.hover();
+  await page.waitForTimeout(300);
+
   const cardBox = await card.boundingBox();
   const columnBox = await targetColumn.boundingBox();
   if (!cardBox || !columnBox) {
@@ -32,10 +48,31 @@ test("moves a card between columns", async ({ page }) => {
   );
   await page.mouse.down();
   await page.mouse.move(
+    cardBox.x + cardBox.width / 2 + 10,
+    cardBox.y + cardBox.height / 2 + 10,
+    { steps: 5 }
+  );
+  await page.mouse.move(
     columnBox.x + columnBox.width / 2,
     columnBox.y + 120,
     { steps: 12 }
   );
   await page.mouse.up();
-  await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
+  await expect(targetColumn.getByText("Draggable card")).toBeVisible();
+});
+
+test("persists changes across a page reload", async ({ page }) => {
+  const firstColumn = page.locator('[data-testid^="column-"]').first();
+  await firstColumn.getByRole("button", { name: /add a card/i }).click();
+  await firstColumn.getByPlaceholder("Card title").fill("Persisted card");
+  await firstColumn.getByPlaceholder("Details").fill("Should survive reload.");
+  await firstColumn.getByRole("button", { name: /add card/i }).click();
+  await expect(firstColumn.getByText("Persisted card")).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
+  await expect(
+    page.locator('[data-testid^="column-"]').first().getByText("Persisted card")
+  ).toBeVisible();
 });

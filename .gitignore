@@ -174,3 +174,15 @@ cython_debug/
 
 .DS_Store
 
+# Built frontend copied into the backend for local serving (Docker regenerates this)
+backend/app/static/
+
+# Auto-generated session signing secret (local dev only)
+backend/.session_secret
+
+# SQLite database (created on first run)
+backend/data/
+
+# Playwright MCP browser automation scratch output
+.playwright-mcp/
+

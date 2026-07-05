@@ -8,8 +8,8 @@ type LoginFormProps = {
 };
 
 export const LoginForm = ({ onSuccess }: LoginFormProps) => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("user");
+  const [password, setPassword] = useState("password");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 

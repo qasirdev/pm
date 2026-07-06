@@ -6,6 +6,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("AI chat creates a card and the board updates live", async ({ page }) => {
+  await page.getByRole("button", { name: /open chat/i }).click();
+
   const chatInput = page.getByPlaceholder(/ask the assistant/i);
   await chatInput.fill(
     "Add a card called E2E chat card to the Discovery column."

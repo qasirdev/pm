@@ -84,6 +84,25 @@ describe("KanbanBoard", () => {
     expect(api.deleteCardApi).toHaveBeenCalledWith("1");
   });
 
+  it("keeps the chat closed until the floating button is clicked", async () => {
+    render(<KanbanBoard onLogout={() => {}} />);
+    await screen.findAllByTestId(/column-/i);
+
+    expect(
+      screen.queryByPlaceholderText(/ask the assistant/i)
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /open chat/i }));
+    expect(
+      screen.getByPlaceholderText(/ask the assistant/i)
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /close chat/i }));
+    expect(
+      screen.queryByPlaceholderText(/ask the assistant/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("redirects to login on a 401 while fetching the board", async () => {
     vi.spyOn(api, "fetchBoard").mockRejectedValue(
       new api.ApiError(401)

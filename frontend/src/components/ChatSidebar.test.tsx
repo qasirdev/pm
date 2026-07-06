@@ -16,11 +16,29 @@ describe("ChatSidebar", () => {
 
   it("renders an empty state before any messages", () => {
     render(
-      <ChatSidebar onBoardUpdate={() => {}} onUnauthorized={() => {}} />
+      <ChatSidebar
+        onBoardUpdate={() => {}}
+        onUnauthorized={() => {}}
+        onClose={() => {}}
+      />
     );
     expect(
       screen.getByText(/ask me to create, edit, move/i)
     ).toBeInTheDocument();
+  });
+
+  it("calls onClose when the close button is clicked", async () => {
+    const onClose = vi.fn();
+    render(
+      <ChatSidebar
+        onBoardUpdate={() => {}}
+        onUnauthorized={() => {}}
+        onClose={onClose}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /close chat/i }));
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("sends a message and displays the reply", async () => {
@@ -31,7 +49,11 @@ describe("ChatSidebar", () => {
     const onBoardUpdate = vi.fn();
 
     render(
-      <ChatSidebar onBoardUpdate={onBoardUpdate} onUnauthorized={() => {}} />
+      <ChatSidebar
+        onBoardUpdate={onBoardUpdate}
+        onUnauthorized={() => {}}
+        onClose={() => {}}
+      />
     );
 
     await userEvent.type(
@@ -50,7 +72,11 @@ describe("ChatSidebar", () => {
     const onUnauthorized = vi.fn();
 
     render(
-      <ChatSidebar onBoardUpdate={() => {}} onUnauthorized={onUnauthorized} />
+      <ChatSidebar
+        onBoardUpdate={() => {}}
+        onUnauthorized={onUnauthorized}
+        onClose={() => {}}
+      />
     );
 
     await userEvent.type(
@@ -66,7 +92,11 @@ describe("ChatSidebar", () => {
     vi.spyOn(api, "sendChatMessage").mockRejectedValue(new Error("network"));
 
     render(
-      <ChatSidebar onBoardUpdate={() => {}} onUnauthorized={() => {}} />
+      <ChatSidebar
+        onBoardUpdate={() => {}}
+        onUnauthorized={() => {}}
+        onClose={() => {}}
+      />
     );
 
     await userEvent.type(

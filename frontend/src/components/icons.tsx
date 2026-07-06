@@ -72,6 +72,22 @@ export const PlusIcon = ({ className = defaultClassName }: IconProps) => (
   </svg>
 );
 
+export const CloseIcon = ({ className = defaultClassName }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+);
+
 export const ChatIcon = ({ className = defaultClassName }: IconProps) => (
   <svg
     viewBox="0 0 24 24"

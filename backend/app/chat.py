@@ -1,4 +1,5 @@
 import json
+import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 from openai import OpenAIError
@@ -104,7 +105,7 @@ class ChatResponse(BaseModel):
     board: BoardData
 
 
-def _apply_action(conn, action: dict) -> None:
+def _apply_action(conn: sqlite3.Connection, action: dict) -> None:
     action_type = action.get("type")
     column_id = action.get("column_id")
     card_id = action.get("card_id")
@@ -140,16 +141,15 @@ def chat(body: ChatRequest) -> ChatResponse:
             ) from error
         board = load_board(conn, board_id)
 
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        messages.append(
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "system",
                 "content": f"Current board JSON: {board.model_dump_json()}",
-            }
-        )
-        for turn in body.history:
-            messages.append({"role": turn.role, "content": turn.content})
-        messages.append({"role": "user", "content": body.message})
+            },
+            *({"role": turn.role, "content": turn.content} for turn in body.history),
+            {"role": "user", "content": body.message},
+        ]
 
         client = get_client()
         try:

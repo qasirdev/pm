@@ -20,22 +20,21 @@ def card_id_to_str(raw_id: int) -> str:
     return f"{CARD_ID_PREFIX}{raw_id}"
 
 
-def parse_column_id(value: str) -> int:
-    if not value.startswith(COLUMN_ID_PREFIX):
-        raise ColumnNotFoundError(value)
+def _parse_prefixed_id(value: str, prefix: str, not_found: type[Exception]) -> int:
+    if not value.startswith(prefix):
+        raise not_found(value)
     try:
-        return int(value[len(COLUMN_ID_PREFIX) :])
+        return int(value[len(prefix) :])
     except ValueError:
-        raise ColumnNotFoundError(value)
+        raise not_found(value)
+
+
+def parse_column_id(value: str) -> int:
+    return _parse_prefixed_id(value, COLUMN_ID_PREFIX, ColumnNotFoundError)
 
 
 def parse_card_id(value: str) -> int:
-    if not value.startswith(CARD_ID_PREFIX):
-        raise CardNotFoundError(value)
-    try:
-        return int(value[len(CARD_ID_PREFIX) :])
-    except ValueError:
-        raise CardNotFoundError(value)
+    return _parse_prefixed_id(value, CARD_ID_PREFIX, CardNotFoundError)
 
 
 class Card(BaseModel):

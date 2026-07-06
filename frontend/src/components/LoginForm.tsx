@@ -28,54 +28,74 @@ export const LoginForm = ({ onSuccess }: LoginFormProps) => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur"
-      >
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-          Single Board Kanban
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-semibold text-[var(--navy-dark)]">
-          Sign in
-        </h1>
+    <div className="flex min-h-screen items-center justify-center px-6 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--iris)]/12 ring-1 ring-[var(--iris)]/20">
+            <span className="status-dot h-2.5 w-2.5 rounded-full bg-[var(--signal)]" />
+          </span>
+          <div>
+            <p className="eyebrow text-[10px] text-[var(--muted)]">
+              Kanban Studio
+            </p>
+            <p className="text-sm font-medium text-[var(--ink-dim)]">
+              Command deck access
+            </p>
+          </div>
+        </div>
 
-        <label className="mt-6 block text-sm font-medium text-[var(--navy-dark)]">
-          Username
-          <input
-            type="text"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-[var(--stroke)] px-3 py-2 text-sm text-[var(--navy-dark)] focus:border-[var(--primary-blue)] focus:outline-none"
-            autoComplete="username"
-          />
-        </label>
-
-        <label className="mt-4 block text-sm font-medium text-[var(--navy-dark)]">
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-[var(--stroke)] px-3 py-2 text-sm text-[var(--navy-dark)] focus:border-[var(--primary-blue)] focus:outline-none"
-            autoComplete="current-password"
-          />
-        </label>
-
-        {error ? (
-          <p className="mt-4 text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-6 w-full rounded-xl bg-[var(--secondary-purple)] px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+        <form
+          onSubmit={handleSubmit}
+          className="panel rounded-3xl p-8"
         >
-          {submitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+          <div className="signal-rail mb-7 w-16" data-live="true" />
+          <h1 className="font-display text-3xl font-semibold text-[var(--ink)]">
+            Sign in
+          </h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Enter your credentials to open the board.
+          </p>
+
+          <label className="mt-7 block text-sm font-medium text-[var(--ink-dim)]">
+            Username
+            <input
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              className="ring-focus mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--field)] px-3.5 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] transition"
+              autoComplete="username"
+            />
+          </label>
+
+          <label className="mt-4 block text-sm font-medium text-[var(--ink-dim)]">
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="ring-focus mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--field)] px-3.5 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] transition"
+              autoComplete="current-password"
+            />
+          </label>
+
+          {error ? (
+            <p
+              className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="ring-focus mt-7 w-full rounded-xl bg-[var(--iris)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-115 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

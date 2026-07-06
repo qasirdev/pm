@@ -26,24 +26,24 @@ export const KanbanColumn = ({
     <section
       ref={setNodeRef}
       className={clsx(
-        "flex min-h-[520px] min-w-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] transition",
-        isOver && "ring-2 ring-[var(--accent-yellow)]"
+        "panel flex min-h-[540px] min-w-0 flex-col rounded-3xl p-4 transition",
+        isOver && "border-[var(--line-strong)]"
       )}
       data-testid={`column-${column.id}`}
     >
+      <div className="signal-rail mb-4 w-full" data-live={isOver} />
       <div className="flex items-center justify-between gap-3">
         <input
           value={column.title}
           onChange={(event) => onRename(column.id, event.target.value)}
-          className="min-w-0 flex-1 bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
+          className="ring-focus min-w-0 flex-1 rounded-md bg-transparent px-1 py-0.5 font-display text-lg font-semibold text-[var(--ink)] outline-none"
           aria-label="Column title"
         />
-        <span className="shrink-0 rounded-full bg-[var(--surface)] px-2.5 py-1 text-xs font-semibold text-[var(--gray-text)]">
+        <span className="shrink-0 rounded-full border border-[var(--line)] bg-[var(--field)] px-2.5 py-0.5 font-display text-xs font-semibold tabular-nums text-[var(--ink-dim)]">
           {cards.length}
         </span>
       </div>
-      <div className="mt-1 h-1 w-10 rounded-full bg-[var(--accent-yellow)]" />
-      <div className="mt-4 flex flex-1 flex-col gap-3 overflow-y-auto">
+      <div className="scroll-slim mt-4 flex flex-1 flex-col gap-3 overflow-y-auto pr-0.5">
         <SortableContext items={column.cardIds} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <KanbanCard
@@ -54,7 +54,7 @@ export const KanbanColumn = ({
           ))}
         </SortableContext>
         {cards.length === 0 && (
-          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[var(--stroke)] px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[var(--line)] px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
             Drop a card here
           </div>
         )}

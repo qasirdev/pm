@@ -14,7 +14,7 @@ const bodyFont = Manrope({
 
 export const metadata: Metadata = {
   title: "Kanban Studio",
-  description: "A focused, single-board kanban workspace.",
+  description: "A focused, single-board command deck with an AI co-pilot.",
 };
 
 export default function RootLayout({

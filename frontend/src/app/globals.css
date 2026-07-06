@@ -1,20 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --accent-yellow: #ecad0a;
-  --primary-blue: #209dd7;
-  --secondary-purple: #753991;
-  --navy-dark: #032147;
-  --gray-text: #888888;
-  --surface: #f7f8fb;
-  --surface-strong: #ffffff;
-  --stroke: rgba(3, 33, 71, 0.08);
-  --shadow: 0 18px 40px rgba(3, 33, 71, 0.12);
+  /* Brand identity (preserved) */
+  --signal: #ecad0a; /* accent yellow - the one bold color */
+  --sky: #209dd7; /* blue - focus, links */
+  --iris: #753991; /* purple - AI, key actions */
+  --navy: #032147; /* deep navy - primary ink */
+
+  /* Light canvas */
+  --canvas: #f4f6fb;
+  --canvas-2: #eef2f9;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-solid: #ffffff;
+  --panel-raise: #ffffff;
+  --field: #ffffff;
+  --line: rgba(3, 33, 71, 0.09);
+  --line-strong: rgba(3, 33, 71, 0.16);
+
+  /* Ink */
+  --ink: #0c1f3a;
+  --ink-dim: #3d4f6b;
+  --muted: #7789a3;
+
+  --glow-signal: 0 0 0 1px rgba(236, 173, 10, 0.4), 0 0 22px rgba(236, 173, 10, 0.3);
+  --shadow-panel: 0 20px 48px -28px rgba(3, 33, 71, 0.28);
+  --shadow-card: 0 8px 20px -12px rgba(3, 33, 71, 0.18);
 }
 
 @theme inline {
-  --color-background: var(--surface);
-  --color-foreground: var(--navy-dark);
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
   --font-sans: var(--font-body);
 }
 
@@ -23,12 +38,96 @@
 }
 
 body {
-  background: var(--surface);
-  color: var(--navy-dark);
-  font-family: var(--font-body), "Segoe UI", sans-serif;
+  min-height: 100vh;
   margin: 0;
+  color: var(--ink);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1000px 560px at 8% -10%, rgba(32, 157, 215, 0.1), transparent 58%),
+    radial-gradient(880px 620px at 96% 110%, rgba(117, 57, 145, 0.09), transparent 60%),
+    linear-gradient(180deg, #f7f9fd, var(--canvas) 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 .font-display {
   font-family: var(--font-display), "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Instrument-readout labels: wide-tracked, uppercase */
+.eyebrow {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+  font-weight: 600;
+}
+
+/* The signature: a signal rail that lights up on activity */
+.signal-rail {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sky), var(--iris) 55%, transparent);
+  opacity: 0.5;
+  transition: opacity 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+.signal-rail[data-live="true"] {
+  background: linear-gradient(90deg, var(--signal), #ffcf4a);
+  opacity: 1;
+  box-shadow: var(--glow-signal);
+}
+
+/* Live status pulse */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(236, 173, 10, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(236, 173, 10, 0);
+  }
+}
+.status-dot {
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+/* Panels: soft cards on the light canvas */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(12px);
+}
+
+/* Custom scrollbars, kept subtle */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus ring, consistent across inputs/buttons */
+.ring-focus:focus-visible {
+  outline: none;
+  border-color: var(--sky);
+  box-shadow: 0 0 0 3px rgba(32, 157, 215, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

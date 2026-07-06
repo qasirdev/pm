@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ApiError, sendChatMessage, type ChatMessage } from "@/lib/api";
 import type { BoardData } from "@/lib/kanban";
+import { ChatIcon, SendIcon } from "@/components/icons";
 
 type ChatSidebarProps = {
   onBoardUpdate: (board: BoardData) => void;
@@ -51,12 +52,12 @@ export const ChatSidebar = ({
   };
 
   return (
-    <aside className="flex h-full w-full flex-col gap-4 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-6 shadow-[var(--shadow)] backdrop-blur">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-          Assistant
-        </p>
-        <h2 className="mt-2 font-display text-xl font-semibold text-[var(--navy-dark)]">
+    <aside className="flex min-h-[520px] w-full flex-col gap-4 rounded-3xl border border-[var(--stroke)] bg-white/80 p-6 shadow-[var(--shadow)] backdrop-blur">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--secondary-purple)]/10 text-[var(--secondary-purple)]">
+          <ChatIcon className="h-4 w-4" />
+        </span>
+        <h2 className="font-display text-lg font-semibold text-[var(--navy-dark)]">
           Board Chat
         </h2>
       </div>
@@ -104,9 +105,10 @@ export const ChatSidebar = ({
         <button
           type="submit"
           disabled={sending || !input.trim()}
-          className="rounded-xl bg-[var(--secondary-purple)] px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+          aria-label="Send message"
+          className="flex shrink-0 items-center justify-center rounded-xl bg-[var(--secondary-purple)] px-3 py-2 text-white transition-opacity disabled:opacity-60"
         >
-          Send
+          <SendIcon className="h-4 w-4" />
         </button>
       </form>
     </aside>

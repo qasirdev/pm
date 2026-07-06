@@ -14,6 +14,9 @@ An AI-powered Kanban project management web app: sign in, work a drag-and-drop b
 
 > Designed, built, and tested end-to-end with the [Claude Code](https://claude.com/claude-code) CLI.
 
+<img width="1506" height="826" alt="image" src="https://github.com/user-attachments/assets/e93515b9-7ce6-45e5-8190-f3b5c65569b5" />
+
+
 ## Overview
 
 Kanban Studio is a full-stack, production-shaped MVP that pairs a modern drag-and-drop board with an LLM assistant. The AI receives the live board state and the user's message, then returns a set of typed, validated actions applied through the same persistence layer as the REST API — no parallel mutation path, no full-board round-trips.
